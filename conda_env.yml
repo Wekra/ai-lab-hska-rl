@@ -1,0 +1,5 @@
+name: ai-lab-hska-rl
+dependencies:
+  - python=3.6.8
+  - pip:
+      - --requirement requirements.txt

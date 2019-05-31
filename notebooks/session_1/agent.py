@@ -9,6 +9,7 @@ from typing import Tuple
 
 from lib import AbstractAgent
 
+
 class QLearning(AbstractAgent):
 
     def __init__(self, action_dim: Tuple, state_dim: Tuple,
@@ -20,8 +21,8 @@ class QLearning(AbstractAgent):
         self.alpha = alpha  # learning rate
 
         # Initialize Q[s,a] table
-        # TODO
-        self.Q = None
+        self.Q = np.zeros((*state_dim,*state_dim,self.action_size)) #Q(state_y, state_x, target_y, target_x, action) = Q-Value
+
 
     def act(self, state: Tuple[int, int, int, int]) -> int:
         """Selects the action to be executed based on the given state.
@@ -35,9 +36,16 @@ class QLearning(AbstractAgent):
         Returns:
             Action.
         """
-        # TODO
-        return 0
+        
+        if random.random() <= self.epsilon:
+            bestAction = random.randint(0,self.action_size - 1)
+        else:
+            Qrow = self.Q[state]
+            #print(Qrow)
+            bestAction = np.argmax(Qrow)
+        return bestAction
 
+    
     def train(self, experience: Tuple[Tuple[int, int, int, int], int, Tuple[int, int, int, int], float, bool]) -> None:
         """Learns the Q-values based on experience.
         
@@ -47,4 +55,17 @@ class QLearning(AbstractAgent):
         Returns:
             None
         """
-        # TODO
+        current_state = experience[0]
+        action = experience[1]
+        next_state = experience[2]
+        reward = experience[3]
+        
+        current_Q_value = self.Q[current_state][action]
+        
+        max_q_delta = np.max(self.Q[next_state])-current_Q_value
+                
+        
+        self.Q[current_state][action] = current_Q_value + self.alpha * (reward + (self.gamma * max_q_delta))
+        
+        
+    

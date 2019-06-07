@@ -24,9 +24,12 @@ class AdvancedQLearning(AbstractAgent):
         self.epsilon_min = epsilon_min
         self.alpha_min = alpha_min
         
+        self.epsilon_start = epsilon
+        self.alpha_start = alpha
+        
         # Initialize Q[s,a] table
-        # TODO
-        self.Q = None
+        self.Q = np.zeros(buckets + (self.action_size,))
+#         print(self.Q)
         self.t = 0 # played episodes
 
     def act(self, state: Tuple[int, int, int, int]) -> int:
@@ -41,8 +44,10 @@ class AdvancedQLearning(AbstractAgent):
         Returns:
             Action.
         """
-        # TODO
-        return 0
+        if random.random() <= self.epsilon: #do exploration
+            return random.randint(0, self.action_size-1)
+    
+        return np.argmax(self.Q[state])
 
     def train(self, experience: Tuple[Tuple[int, int, int, int], int, Tuple[int, int, int, int], float, bool]) -> None:
         """Learns the Q-values based on experience.
@@ -53,5 +58,31 @@ class AdvancedQLearning(AbstractAgent):
         Returns:
             None
         """
-        # TODO
+        current_state = experience[0]
+        action = experience[1]
+        next_state = experience[2]
+        reward = experience[3]
         
+        current_Q_value = self.Q[current_state][action]
+        #print('current q ', current_Q_value,' at ', current_state)
+        max_q_delta = np.max(self.Q[next_state])-current_Q_value
+        
+        self.Q[current_state][action] = current_Q_value + self.alpha * (reward + (self.gamma * max_q_delta))
+        #print(self.t)
+        
+        self.epsilon = max(self.epsilon_min, min(self.epsilon_start, 1.0 - math.log10((self.t + 1) / 25)))
+        self.alpha = max(self.alpha_min, min(self.alpha_start, 1.0 - math.log10((self.t + 1) / 25)))
+        
+#         self.epsilon = np.argmax([(9-np.log(self.t))/(1000*np.e), self.epsilon_min])
+#         self.alpha = np.argmax([(8.4-np.log(0.65*self.t))/np.e, self.alpha_min])
+        self.t += 1
+        """
+        # Update 
+        if self.t >= 150:
+            self.epsilon = self.epsilon_min
+            self.alpha = self.alpha_min
+        elif self.t % 25 == 0:
+            self.epsilon -= 0.0002
+            self.alpha -= 0.2
+       
+        """

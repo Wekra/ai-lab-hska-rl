@@ -28,7 +28,7 @@ class AdvancedQLearning(AbstractAgent):
         self.alpha_start = alpha
         
         # Initialize Q[s,a] table
-        self.Q = np.zeros(buckets + (self.action_size,))
+        self.Q = np.zeros(buckets + (self.action_size,), dtype=float)
 #         print(self.Q)
         self.t = 0 # played episodes
 
@@ -44,8 +44,9 @@ class AdvancedQLearning(AbstractAgent):
         Returns:
             Action.
         """
-        if random.random() <= self.epsilon: #do exploration
-            return random.randint(0, self.action_size-1)
+        if np.random.rand() <= self.epsilon: #do exploration
+#             return random.randint(0, self.action_size-1)
+            return random.randrange(self.action_size)
     
         return np.argmax(self.Q[state])
 
@@ -68,21 +69,13 @@ class AdvancedQLearning(AbstractAgent):
         max_q_delta = np.max(self.Q[next_state])-current_Q_value
         
         self.Q[current_state][action] = current_Q_value + self.alpha * (reward + (self.gamma * max_q_delta))
-        #print(self.t)
-        
-        self.epsilon = max(self.epsilon_min, min(self.epsilon_start, 1.0 - math.log10((self.t + 1) / 25)))
-        self.alpha = max(self.alpha_min, min(self.alpha_start, 1.0 - math.log10((self.t + 1) / 25)))
-        
+
+    
+        if experience[4]:
+            self.epsilon = max(self.epsilon_min, min(self.epsilon_start, 1.0 - math.log10((self.t + 1) / 25)))
+            self.alpha = max(self.alpha_min, min(self.alpha_start, 1.0 - math.log10((self.t + 1) / 25)))
+
 #         self.epsilon = np.argmax([(9-np.log(self.t))/(1000*np.e), self.epsilon_min])
 #         self.alpha = np.argmax([(8.4-np.log(0.65*self.t))/np.e, self.alpha_min])
-        self.t += 1
-        """
-        # Update 
-        if self.t >= 150:
-            self.epsilon = self.epsilon_min
-            self.alpha = self.alpha_min
-        elif self.t % 25 == 0:
-            self.epsilon -= 0.0002
-            self.alpha -= 0.2
-       
-        """
+            self.t += 1
+      

@@ -17,11 +17,12 @@ from lib import AbstractAgent
 
 class DQN(AbstractAgent):
 
-    def __init__(self, action_size: int, state_size: int,
+    def __init__(self, action_size: int, action_space, state_size: int,
                  gamma: float = None, epsilon: float = None, epsilon_decay: float = None, epsilon_min: float = None,
                  alpha: float = None, batch_size=None, memory_size=None, start_replay_step=None,
                  target_model_update_interval=None):
         self.action_size = action_size
+        self.action_space = action_space
         self.state_size = state_size
 
         # randomly remembered states and rewards (used because of efficiency and correlation)
@@ -65,6 +66,7 @@ class DQN(AbstractAgent):
 
     def _build_model(self):
         # With the functional API we need to define the inputs. Sequential API no longer works because of merge mask
+        #print("statseize",self.state_size, "actionsize",self.action_size)
         states_input = Input((self.state_size,), name='states')
         action_mask = Input((self.action_size,), name='action_mask')
 
@@ -89,14 +91,24 @@ class DQN(AbstractAgent):
         return model
 
     def _remember(self, experience: Tuple[np.ndarray, int, np.ndarray, float, bool]) -> None:
-        # Todo: Store experience in memory
+        # Done: Store experience in memory
+        state = np.array(experience[0])
+        action = experience[1]
+        next_state = np.array(experience[2])
+        reward = experience[3]
+        done = experience[4]
+        self.memory.append((state, action, next_state, reward, done))
         pass
 
     def _replay(self) -> None:
         # Todo: Get a random mini batch from memory and create numpy arrays for each part of this experience.
-        states, actions, next_states, rewards, dones = np.array([]), np.array([]), np.array([]), np.array([]), np.array(
-            [])
-
+        # states, actions, next_states, rewards, dones = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
+        memory_batch = random.sample(self.memory, self.batch_size)
+        states, actions, next_states, rewards, dones = np.array(memory_batch).T
+#         print("SACHEN: ", states, actions, next_states, rewards, dones)
+        states = np.vstack(states)
+        next_states = np.vstack(next_states)
+        
         # The following assert statements are intended to support further implementation,
         # but can also be removed/adjusted if necessary.
         assert all(isinstance(x, np.ndarray) for x in (states, actions, rewards, next_states, dones)), \
@@ -109,14 +121,22 @@ class DQN(AbstractAgent):
             f"Next states shape should be: {(self.batch_size, self.state_size)}"
         assert dones.shape == (self.batch_size,), f"Dones shape should be: {(self.batch_size,)}"
 
-        # Todo: Predict the Q values of the next states. Passing ones as the action mask.
-        next_q_values = None
+        # Done: Predict the Q values of the next states. Passing action_mask_batch as the action mask. 
+        next_q_values = self.model.predict([next_states, self.action_mask_batch])
 
         # Todo: Set the Q values of terminal states to 0 (by definition)
-
-        # Todo: Calculate the Q values, remember
-        #  the Q values of each non-terminal state is the reward + gamma * the max next state Q value
+        # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
+#         print(next_q_values.shape)
+#         dones = np.vstack(dones)
+#         print(dones.shape)
+    
+        #next_q_values[dones] = 0
+        next_q_values = [0 if dones[i] else next_q_values[i] for i in range(len(next_q_values))]
+        
+        # Todo: Calculate the Q values, you must
+        #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
         # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
+        print(next_q_values)
         q_values = None
 
         # Todo: Create a one hot encoding of the actions (the selected action is 1 all others 0)
@@ -149,12 +169,20 @@ class DQN(AbstractAgent):
         Returns:
             Action.
         """
+        
+        # possible solution:
+        # if (np.random.random() <= self.epsilon):
+        #    return self.env.action_space.sample()
+        # return np.argmax(self.model.predict(state))
+        #
         if random.random() < self.epsilon:
             # Todo: return random valid action
-            action = 0
+            action = self.action_space.sample()
+            #print("RANDOM ACTION:    ", action)
         else:
             # Todo: Use the model to get the Q values for the state and determine the action based on the max Q value.
-            action = 1
+            action = np.argmax(self.model.predict([[state], self.action_mask]))
+            #print("PREDICTED ACTION: ", action)
         return action
 
     def train(self, experience: Tuple[np.ndarray, int, np.ndarray, float, bool]) -> None:
@@ -172,5 +200,10 @@ class DQN(AbstractAgent):
         #  - Update epsilon as long as it is not minimal
         #  - update weights of the target model (syn of the two models)
         #  - execute replay
-
+        if self.step == self.start_replay_step:
+            self._replay()
+        
+        if self.step == self.target_model_update_interval:
+            self.target_model.set_weights(self.model.get_weights())
+           
         self.step += 1

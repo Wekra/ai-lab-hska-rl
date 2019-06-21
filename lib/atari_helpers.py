@@ -250,12 +250,16 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False):
     """Configure environment for DeepMind-style Atari.
     """
     if episode_life:
+        print("EpisodicLifeEnv wrapper is used.")
         env = EpisodicLifeEnv(env)
     if 'FIRE' in env.unwrapped.get_action_meanings():
+        print("FireResetEnv wrapper is used.")
         env = FireResetEnv(env)
     env = WarpFrame(env)
     if clip_rewards:
+        print("ClipRewardEnv wrapper is used.")
         env = ClipRewardEnv(env)
     if frame_stack:
+        print("FrameStack (4) wrapper is used.")
         env = FrameStack(env, 4)
     return env

@@ -4,15 +4,32 @@ Praktische Herangehensweise an die Lösung unterschiedlich komplexer Kontroll-Pr
 
 ## Vorbereitung
 
+### System ohne nvidia GPU
+
 Docker Image bauen:
 ```bash
-docker build -t ai-lab-rl .
+docker build -f cpu.Dockerfile -t ai-lab-rl .
 ```
 
 Docker Container starten:
 ```bash
 docker run -it --rm -v ~/ai-lab-hska-rl:/rl -p 8888:8888  ai-lab-rl
 ```
+
+### System mit nvidia GPU
+
+Docker Image bauen:
+```bash
+docker build -f gpu.Dockerfile -t ai-lab-rl .
+```
+
+Docker Container mit nvidia runtime (nvidia-docker) starten:
+```bash
+docker run --runtime=nvidia -it --rm -v ~/ai-lab-hska-rl:/rl -p 8888:8888  ai-lab-rl
+```
+
+### Jupyter Lab
+
 Im Browser `http://localhost:8888` aufrufen.
 **Speichern klappt nur bei Tusted Notebooks!**
 

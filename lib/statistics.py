@@ -1,12 +1,24 @@
 """
 Helper functions to handle statistics and plot them.
 """
-import matplotlib.pyplot as plt
 from typing import List, Dict
+from typing import Tuple
 
-def plot(statistics: List[Dict]) -> None:
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def plot(statistics: List[Dict], y_limits: Tuple[int, int] = None) -> None:
     x = [statistic['episode'] for statistic in statistics]
     y = [statistic['score'] for statistic in statistics]
 
+    mean = np.mean(y)
+
     fig, ax = plt.subplots()
-    ax.plot(x, y)
+    if y_limits:
+        ax.set_ylim(y_limits)
+
+    ax.plot(x, y, label="scores")
+    ax.plot(x, [mean] * len(x), label=f'mean {mean}')
+
+    ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)

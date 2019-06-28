@@ -101,7 +101,7 @@ class DQN(AbstractAgent):
         pass
 
     def _replay(self) -> None:
-        # Todo: Get a random mini batch from memory and create numpy arrays for each part of this experience.
+        # Done: Get a random mini batch from memory and create numpy arrays for each part of this experience.
         # states, actions, next_states, rewards, dones = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
         memory_batch = random.sample(self.memory, self.batch_size)
         states, actions, next_states, rewards, dones = np.array(memory_batch).T
@@ -122,33 +122,49 @@ class DQN(AbstractAgent):
         assert dones.shape == (self.batch_size,), f"Dones shape should be: {(self.batch_size,)}"
 
         # Done: Predict the Q values of the next states. Passing action_mask_batch as the action mask. 
-        next_q_values = self.model.predict([next_states, self.action_mask_batch])
+        next_q_values_original = self.model.predict([next_states, self.action_mask_batch])
 
-        # Todo: Set the Q values of terminal states to 0 (by definition)
-        # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
-#         print(next_q_values.shape)
-#         dones = np.vstack(dones)
-#         print(dones.shape)
+        next_q_values = []
+        q_values = []
+        one_hot_actions = []
+        target_q_values = []
+        for i in range(len(next_q_values_original)):
+            if dones[i]:
+                # Done: Set the Q values of terminal states to 0 (by definition)
+                # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
+                next_q_values.append(np.zeros(self.action_size))
+                q_values.append(0)
+            else:
+                # Done: Calculate the Q values, you must
+                #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
+                # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
+                next_q_values.append(next_q_values_original[i])
+                q_values.append(rewards[i] + self.gamma * np.max(next_q_values[i]))
+            
+            one_hot_actions.append([])
+            target_q_values.append([])
+            
+            idx = np.array(np.argmax(next_q_values[i]))
+            idxmax = idx[0] if len(idx.shape) > 0 else idx
+            #print("IDX",idx,"IDXMAX",idxmax)
+                
+            for j in range(self.action_size):
+                # Done: Create a one hot encoding of the actions (the selected action is 1 all others 0)
+                one_hot_actions[i].append(1           if j == idxmax else 0)
+                # Done: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
+                target_q_values[i].append(q_values[i] if j == idxmax else 0)
     
-        #next_q_values[dones] = 0
-        next_q_values = [0 if dones[i] else next_q_values[i] for i in range(len(next_q_values))]
-        
-        # Todo: Calculate the Q values, you must
-        #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
-        # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
-        print(next_q_values)
-        q_values = None
-
-        # Todo: Create a one hot encoding of the actions (the selected action is 1 all others 0)
-        one_hot_actions = None
-
-        # Todo: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
-        target_q_values = None
+    
+#         print("DONES: ", dones)
+#         print("NEXT Q VALUES: ", next_q_values)
+#         print("Q_Values: ", q_values)
+#         print("ONE HOT ACTIONS: ", one_hot_actions)
+#         print("TARGET_Q_VALUES ", target_q_values)
 
         # Todo: fit the model with the right x and y values
         self.model.fit(
-            x=None,  # states and mask
-            y=None,  # target Q values
+            x= (states, self.action_mask_batch),  # states and mask
+            y=[target_q_values],  # target Q values
             batch_size=self.batch_size,
             verbose=0
         )
@@ -176,9 +192,9 @@ class DQN(AbstractAgent):
         # return np.argmax(self.model.predict(state))
         #
         if random.random() < self.epsilon:
-            # Todo: return random valid action
+            # Done: return random valid action
             action = self.action_space.sample()
-            #print("RANDOM ACTION:    ", action)
+#             print("RANDOM ACTION:    ", action)
         else:
             # Todo: Use the model to get the Q values for the state and determine the action based on the max Q value.
             action = np.argmax(self.model.predict([[state], self.action_mask]))
@@ -198,12 +214,17 @@ class DQN(AbstractAgent):
 
         # Todo: As soon as enough steps are played:
         #  - Update epsilon as long as it is not minimal
-        #  - update weights of the target model (syn of the two models)
-        #  - execute replay
-        if self.step == self.start_replay_step:
+        #  - update weights of the target model (syn of the two models) (done)
+        #  - execute replay (done)
+        if self.step > self.start_replay_step:
             self._replay()
         
-        if self.step == self.target_model_update_interval:
-            self.target_model.set_weights(self.model.get_weights())
-           
+            # target model = freeze model
+            # model = online model (that gets trained all the time)
+            if self.step % self.target_model_update_interval == 0:
+                self.target_model.set_weights(self.model.get_weights())
+
+            # Update epsilon as long as it is not minimal
+            if self.epsilon > self.epsilon_min:
+                self.epsilon = self.epsilon - self.epsilon_decay
         self.step += 1

@@ -210,6 +210,6 @@ class AtariDQN(AbstractAgent):
         # Todo: As soon as enough steps are played:
         #  - Update epsilon as long as it is not minimal
         #  - update weights of the target model (syn of the two models)
-        #  - execute replay
+        #  - execute replay -> include train_frequency
 
         self.step += 1

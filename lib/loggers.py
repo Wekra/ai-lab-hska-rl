@@ -1,4 +1,21 @@
+import io
+
 import tensorflow as tf
+from PIL import Image
+
+
+def tf_summary_image(obs):
+    height, width = obs.shape
+    image = Image.fromarray(obs)
+    output = io.BytesIO()
+    image.save(output, format='PNG')
+    image_string = output.getvalue()
+    output.close()
+
+    return tf.Summary.Image(height=height,
+                            width=width,
+                            colorspace=1,
+                            encoded_image_string=image_string)
 
 
 class TensorBoardLogger:

@@ -11,9 +11,9 @@ Docker Image bauen:
 docker build -f cpu.Dockerfile -t ai-lab-rl .
 ```
 
-Docker Container starten:
+Jupyter Notebook inkl. TensorBoard starten:
 ```bash
-docker run -it --rm -v ~/ai-lab-hska-rl:/rl -p 8888:8888  ai-lab-rl
+docker-compose up ai-lab-rl-cpu
 ```
 
 ### System mit nvidia GPU
@@ -23,15 +23,19 @@ Docker Image bauen:
 docker build -f gpu.Dockerfile -t ai-lab-rl .
 ```
 
-Docker Container mit nvidia runtime (nvidia-docker) starten:
+Jupyter Notebook inkl. TensorBoard starten:
 ```bash
-docker run --runtime=nvidia -it --rm -v ~/ai-lab-hska-rl:/rl -p 8888:8888  ai-lab-rl
+docker-compose up ai-lab-rl-gpu
 ```
 
 ### Jupyter Lab
 
 Im Browser `http://localhost:8888` aufrufen.
 **Speichern klappt nur bei Tusted Notebooks!**
+
+### TensorBoard
+
+Im Browser `http://localhost:6006` aufrufen.
 
 ## Termine
 

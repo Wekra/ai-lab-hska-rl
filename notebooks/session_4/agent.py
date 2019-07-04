@@ -156,6 +156,7 @@ class AtariDQN(AbstractAgent):
 
         # Todo: Predict the Q values of the next states (choose the right model!). Passing ones as the action mask
         #  Note that a suitable mask has already been created in '__init__'.
+        next_q_values_original = self.model.predict([next_states, self.action_mask_batch])
 
         # Todo: Calculate the Q values, remember
         #  - the Q values of each non-terminal state is the reward + gamma * the max next state Q value
@@ -168,13 +169,52 @@ class AtariDQN(AbstractAgent):
 
         # Todo: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
         #  Hint you have to "reshape" the q_values to match the shape
+        ######### own code below:
+        next_q_values = []
+        q_values = []
+        one_hot_actions = []
+        target_q_values = []
+        for i in range(len(next_q_values_original)):
+            if dones[i]:
+                # Done: Set the Q values of terminal states to 0 (by definition)
+                # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
+                next_q_values.append(np.zeros(self.action_size))
+                q_values.append(0)
+            else:
+                # Done: Calculate the Q values, you must
+                #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
+                # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
+                next_q_values.append(next_q_values_original[i])
+                q_values.append(rewards[i] + self.gamma * np.max(next_q_values[i]))
+            
+            one_hot_actions.append([])
+            target_q_values.append([])
+            
+            idx = np.array(np.argmax(next_q_values[i]))
+            idxmax = idx[0] if len(idx.shape) > 0 else idx
+            #print("IDX",idx,"IDXMAX",idxmax)
+                
+            for j in range(self.action_size):
+                # Done: Create a one hot encoding of the actions (the selected action is 1 all others 0)
+                one_hot_actions[i].append(1           if j == idxmax else 0)
+                # Done: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
+                target_q_values[i].append(q_values[i] if j == idxmax else 0)
+    
+    
+#         print("DONES: ", dones)
+#         print("NEXT Q VALUES: ", next_q_values)
+#         print("Q_Values: ", q_values)
+#         print("ONE HOT ACTIONS: ", one_hot_actions)
+#         print("TARGET_Q_VALUES ", target_q_values)
 
-        self.model.fit(
-            x=None,  # states and mask
-            y=None,  # target Q values
-            batch_size=self.batch_size,
-            verbose=0
-        )
+
+    # Todo: fit the model with the right x and y values
+    self.model.fit(
+        x= (states, self.action_mask_batch),  # states and mask
+        y=[target_q_values],  # target Q values
+        batch_size=self.batch_size,
+        verbose=0
+    )
 
     def act(self, state: LazyFrames) -> int:
         """Selects the action to be executed based on the given state.
@@ -193,7 +233,9 @@ class AtariDQN(AbstractAgent):
         else:
             # Todo: Use the model to get the Q values for the state and determine the action based on the max Q value.
             #  Hint: You have to convert the state to a list of numpy arrays before you can pass it to the model
-            action = 1
+            # action = 1
+            action = np.argmax(self.model.predict([[state], self.action_mask]))
+            #print("PREDICTED ACTION: ", action)
         return action
 
     def train(self, experience: Tuple[LazyFrames, int, LazyFrames, float, bool]) -> None:
@@ -211,5 +253,15 @@ class AtariDQN(AbstractAgent):
         #  - Update epsilon as long as it is not minimal
         #  - update weights of the target model (syn of the two models)
         #  - execute replay -> include train_frequency
+        if self.step > self.start_replay_step:
+
+            if self.step % self.train_freq == 0:
+                self._replay()
+
+            if self.step % self.target_model_update_interval == 0:
+                self.target_model.set_weights(self.model.get_weights())
+
+            if self.epsilon > self.epsilon_min:
+                self.epsilon = self.epsilon - self.epsilon_decay
 
         self.step += 1

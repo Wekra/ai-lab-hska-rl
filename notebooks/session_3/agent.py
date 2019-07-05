@@ -92,22 +92,30 @@ class DQN(AbstractAgent):
 
     def _remember(self, experience: Tuple[np.ndarray, int, np.ndarray, float, bool]) -> None:
         # Done: Store experience in memory
-        state = np.array(experience[0])
-        action = experience[1]
-        next_state = np.array(experience[2])
-        reward = experience[3]
-        done = experience[4]
-        self.memory.append((state, action, next_state, reward, done))
+#         state = np.array(experience[0])
+#         action = experience[1]
+#         next_state = np.array(experience[2])
+#         reward = experience[3]
+#         done = experience[4]
+#         self.memory.append((state, action, next_state, reward, done))
+        self.memory.append(experience)
         pass
 
     def _replay(self) -> None:
         # Done: Get a random mini batch from memory and create numpy arrays for each part of this experience.
         # states, actions, next_states, rewards, dones = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
         memory_batch = random.sample(self.memory, self.batch_size)
-        states, actions, next_states, rewards, dones = np.array(memory_batch).T
+#         states_a, actions_a, next_states_a, rewards_a, dones_a = np.array(memory_batch).T
 #         print("SACHEN: ", states, actions, next_states, rewards, dones)
-        states = np.vstack(states)
-        next_states = np.vstack(next_states)
+#         states_a = np.vstack(states_a)
+#         next_states_a = np.vstack(next_states_a)
+#         print("Legacy: ", states_a.shape, next_states_a.shape)
+#         print("Legacy: ", states_a[0])
+        
+        states, actions, next_states, rewards, dones = map(np.array, zip(*memory_batch))
+#         print("New: ", states.shape, next_states.shape)
+#         print("New: ", states[0])
+        
         
         # The following assert statements are intended to support further implementation,
         # but can also be removed/adjusted if necessary.
@@ -122,38 +130,42 @@ class DQN(AbstractAgent):
         assert dones.shape == (self.batch_size,), f"Dones shape should be: {(self.batch_size,)}"
 
         # Done: Predict the Q values of the next states. Passing action_mask_batch as the action mask. 
-        next_q_values_original = self.model.predict([next_states, self.action_mask_batch])
+        next_q_values = self.target_model.predict([next_states, self.action_mask_batch])
 
-        next_q_values = []
-        q_values = []
-        one_hot_actions = []
-        target_q_values = []
-        for i in range(len(next_q_values_original)):
-            if dones[i]:
-                # Done: Set the Q values of terminal states to 0 (by definition)
-                # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
-                next_q_values.append(np.zeros(self.action_size))
-                q_values.append(0)
-            else:
-                # Done: Calculate the Q values, you must
-                #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
-                # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
-                next_q_values.append(next_q_values_original[i])
-                q_values.append(rewards[i] + self.gamma * np.max(next_q_values[i]))
+#         next_q_values = []
+#         q_values = []
+#         one_hot_actions = []
+#         target_q_values = []
+#         for i in range(len(next_q_values_original)):
+#             if dones[i]:
+#                 # Done: Set the Q values of terminal states to 0 (by definition)
+#                 # Final/terminal states: The states that have no available actions are final/terminal states. each action=0
+#                 next_q_values.append(np.zeros(self.action_size))
+#                 q_values.append(0)
+#             else:
+#                 # Done: Calculate the Q values, you must
+#                 #  remember the Q values of each non-terminal state is the reward + gamma * the max next state Q value
+#                 # Depending on the implementation, the axis must be specified to get the max q-value for EACH batch element!
+#                 next_q_values.append(next_q_values_original[i])
+#                 q_values.append(rewards[i] + self.gamma * np.max(next_q_values[i]))
             
-            one_hot_actions.append([])
-            target_q_values.append([])
+#             one_hot_actions.append([])
+#             target_q_values.append([])
             
-            idx = np.array(np.argmax(next_q_values[i]))
-            idxmax = idx[0] if len(idx.shape) > 0 else idx
-            #print("IDX",idx,"IDXMAX",idxmax)
+#             idx = np.array(np.argmax(next_q_values[i]))
+#             idxmax = idx[0] if len(idx.shape) > 0 else idx
+#             #print("IDX",idx,"IDXMAX",idxmax)
                 
-            for j in range(self.action_size):
-                # Done: Create a one hot encoding of the actions (the selected action is 1 all others 0)
-                one_hot_actions[i].append(1           if j == idxmax else 0)
-                # Done: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
-                target_q_values[i].append(q_values[i] if j == idxmax else 0)
+#             for j in range(self.action_size):
+#                 # Done: Create a one hot encoding of the actions (the selected action is 1 all others 0)
+#                 one_hot_actions[i].append(1           if j == idxmax else 0)
+#                 # Done: Create the target Q values based on the one hot encoding of the actions and the calculated q-values
+#                 target_q_values[i].append(q_values[i] if j == idxmax else 0)
     
+        next_q_values[dones] = 0.0
+        q_values = rewards + self.gamma*np.max(next_q_values, axis=1)
+        one_hot_encoding = to_categorical(actions, num_classes=self.action_size)
+        target_q_values = one_hot_encoding * q_values.reshape(self.batch_size, 1)
     
 #         print("DONES: ", dones)
 #         print("NEXT Q VALUES: ", next_q_values)
@@ -163,7 +175,7 @@ class DQN(AbstractAgent):
 
         # Todo: fit the model with the right x and y values
         self.model.fit(
-            x= (states, self.action_mask_batch),  # states and mask
+            x= (states, one_hot_encoding),  # states 
             y=[target_q_values],  # target Q values
             batch_size=self.batch_size,
             verbose=0
